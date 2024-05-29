@@ -29,3 +29,45 @@ https://catalog.us-east-1.prod.workshops.aws/workshops/85cd2bb2-7f79-4e96-bdee-8
 The setup phase of this workshop involves downloading code from Github, uploading it to an S3 bucket for accessibility by instances, and creating an AWS Identity and Access Management (IAM) EC2 role. This role facilitates secure connections to instances using AWS Systems Manager Session Manager, eliminating the need for SSH key pairs.
 This was started by cloning the orinal project from AWS on Github in order to access the project file as can be seen below:
 ![Cone Projectss](media/002_CloningOriginalProjectFromAWS.png)
+
+### Creating S3 Bucket
+I created a buket by name *three-tier-web-application-bucket* which will serve as a place holder for all the application codes and other important file. In the creation process, all the default were maintained in order to achieve maximum security. The bucket was created in the US East (N. Virginia) us-east-1 region.
+![Creating of Bucket](<media/003_Creating of Bucket.png>)
+
+### IAM EC2 Instance Role Creation
+Role Created name is *three-tier-webapp-EC2-SSM-S3* which has two permissions attached namely
+1. AmazonSSMManagedInstanceCore
+2. AmazonS3ReadOnlyAccess
+
+The tust relationship created is
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "ec2.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+![IAMRoel](media/004_CreatingIAMRole.png)
+
+
+### Networking and Security
+In this section we will be building out the VPC networking components as well as security groups that will add a layer of protection around our EC2 instances, Aurora databases, and Elastic Load Balancers.
+
+#### VPC Creation
+
+Under this section, i selected VPC only and name it *three_tier_webapp_vpc* iwth CIDR of 10.0.0.0/16
+![alt text](media/005_VPCOnly.png) 
+
+#### Creation of Subnets
+In this activity as depicted by the Architectural Diagram
+![Subnet Creation](media/006_CreationOfSubnets.png)
+
+#### Adding an Internet Gateway
+Though some subnets are named as Public, they are in actual not yet made public to recieve traffic from the internet. This can only be achieved by attaching an Internet Gateway module and configuring the Routes
