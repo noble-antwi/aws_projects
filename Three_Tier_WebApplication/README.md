@@ -71,3 +71,12 @@ In this activity as depicted by the Architectural Diagram
 
 #### Adding an Internet Gateway
 Though some subnets are named as Public, they are in actual not yet made public to recieve traffic from the internet. This can only be achieved by attaching an Internet Gateway module and configuring the Routes
+
+#### Adding Internet Gateway
+
+Internet Gateway created was calle *ThreeTierWebApp_IGW* which was the only Internet Gatway created in addition to the Default Gateway
+![IGW](media/007_InternetGatewayAddedNotAttached.png)
+
+The IGW however is currently not associated with any subnet since it is not attached to any VPC and then aattachedment to subnets, hence none of the subnet is currenlty public, ie.e receiving internrt traffic.
+
+![VPCAttachment](media/008_VPCAttachement.png)
