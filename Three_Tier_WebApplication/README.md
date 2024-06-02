@@ -80,3 +80,95 @@ Internet Gateway created was calle *ThreeTierWebApp_IGW* which was the only Inte
 The IGW however is currently not associated with any subnet since it is not attached to any VPC and then aattachedment to subnets, hence none of the subnet is currenlty public, ie.e receiving internrt traffic.
 
 ![VPCAttachment](media/008_VPCAttachement.png)
+
+#### NAT Gateway Creation
+
+In order for the instances in the app layer private subnet and DB layer Private subnet to be able to access the internet they will need to go through a NAT Gateway. For high availability, we will deploy one NAT gateway in each of your public. In order for the NAT Gatways to have a static IP, I will also create an Elastic IP in the process
+
+![FirstNATGW](media/010_FirstNATGW.png)
+
+The two Gateways are added Successfully with two Elastic IPs (Public Static IPs)
+
+![ElasticIP](media/012_TwoNGWCreatedSuccesfully.png)
+
+#### Routing Configuration
+At this stage, I want to create route table in order to directs traffic in my Infratructure to the right resource. A default route table is already created during the creation of the VPC which aids in establishing Private routing between resources in the Network. This route does not see Public Traffic.
+
+Default Routes can be seen below with its details 
+![Routes](media/013_Routes.png)
+
+#### Adding of Public Routes
+
+As depicted in the video below,  a public Route Table was created by name ThreTierWebApp_Public_RT with the configuation details below.
+
+The routes were updates to direct all oubic traffic to the Internet Gatway and the subnet that are associated with this routes are 
+1. ThreeTierWebapp_PublicWeb-AZ2(b)
+2. ThreeTierWebapp_PublicWeb-AZ1(a)
+![PublicROutes](media/016_PublicROutes.png)
+
+#### Adding of Private Routes
+
+Adding Private Routes will ensure tehe APp Tier does not communicate with the internet Directly but rather through  NAT Gateway. As depicted in the video, Two private routes were created which are 
+1. ThreeTierWebApp_PrivateApp_AZ1(a)_RT : This routes traffic to Instances in the availabeility Zone A. The subent associated to this route is ThreeTierWebapp_PrivateApp-AZ1(a) with the routes configured below
+
+![alt text](media/017_PrivateAZ1_RT.png)
+
+2. ThreeTierWebApp_PrivateApp_AZ2(b)_RT : Routes Traffic in Availability Zone B. The subnet assocciated to this route is ThreeTierWebapp_PrivateApp-AZ2(b)
+
+![private AZ2](media/018_PrivateAZ2.png)
+
+NB: Routes are not added for the DB subnet because the DB is managed Directly by AWS
+
+### Security Groups
+
+Security groups will tighten the rules around which traffic will be allowed to our Elastic Load Balancers and EC2 instances.
+The first security group you’ll create is for the public, internet facing load balancer. After typing a name and description, add an inbound rule to allow HTTP type traffic for your IP.
+
+In following security best practices, the security groups are going to be in the from or a daisy chain.
+
+The first security group you’ll create is for the public, internet facing load balancer. After typing a name and description, add an inbound rule to allow HTTP type traffic for your IP.
+
+The second security group you’ll create is for the public instances in the web tier. After typing a name and description, add an inbound rule that allows HTTP type traffic from your internet facing load balancer security group you created in the previous step. This will allow traffic from your public facing load balancer to hit your instances. Then, add an additional rule that will allow HTTP type traffic for your IP. This will allow you to access your instance when we test.
+
+The third security group will be for our internal load balancer. Create this new security group and add an inbound rule that allows HTTP type traffic from your public instance security group. This will allow traffic from your web tier instances to hit your internal load balancer.
+
+The fourth security group we’ll configure is for our private instances. After typing a name and description, add an inbound rule that will allow TCP type traffic on port 4000 from the internal load balancer security group you created in the previous step. This is the port our app tier application is running on and allows our internal load balancer to forward traffic on this port to our private instances. You should also add another route for port 4000 that allows your IP for testing.
+
+The fifth security group we’ll configure protects our private database instances. For this security group, add an inbound rule that will allow traffic from the private instance security group to the MYSQL/Aurora port (3306).
+
+![SecurityGroups](media/019_SecurityGroups.png)
+
+Detailed Explanation can be find the Video below
+
+# My Video
+
+Here is a video embedded directly in the Markdown file:
+
+<iframe src="https://drive.google.com/file/d/1V11c90i-I1qoUKswBaqd0ZmHFr6zm6Qh/preview" width="640" height="480" allow="autoplay"></iframe>
+ddd
+
+
+
+
+## Database Deployment
+
+In the RDS Dashboard, the first thing to be done is the creation of the DB subnet group.
+
+![DB Subnet](media/021_DBSubnet.png)
+
+#### Database Deployment
+I created the DB with the following details
+Database Creations Details
+
+I picked Standard Create and then selected Aurora (MySQL Compatible Version). For the Templates, i went with Dev/Test since this is going to be a Test and not a production workload.
+I named the DB Cluster Identifier as ThreeTiierWebApp-Cluster2
+For the credentials
+Master User is antwinob with Password been 0242.ann
+Encryption is een managed by aws/secretesmanager 
+
+In the configuration option, I selected Aurora Standard. IN teh DB instance Class, I selected Memory Optimised Class specifically db.r5.xlarge with 4vCPUs and 32GB RAM, and a Netork of 4750 Mbps
+For Multi-AZ deployment, in order to achieve high availability and establish fault tolereance, we went for Multi AZ Deployment.
+
+Under the connectivity option, The ThreeTierWebApp VPC was selected after which the DB Subent group gets populated.The option to access it Publicly has also been turn to No. The secueiry grouo for the DB Tier was selected.
+
+All other options were left in theri default state.
