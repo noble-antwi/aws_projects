@@ -272,3 +272,50 @@ I selected the ThreeTierWebApp_AppInstace and then oepn the Image and Tmeplates 
 ### Creation of a Target Group
 
 A target group in AWS is a collection of endpoints or servers to which an Elastic Load Balancer (ELB) routes traffic. These endpoints, known as targets, can include EC2 instances, IP addresses, or AWS Lambda functions. Target groups are used to route requests based on specific protocols and port numbers, and they are closely associated with Application Load Balancers (ALBs), Network Load Balancers (NLBs), and VPC Lattice configurations. Each target group is defined by a set of health check parameters to monitor the health of the targets and ensure efficient traffic distribution .
+
+In this Project, our endpint will be EC2 instances.
+The Target Group name is **ThreeTierWebApp-AppTierTargetGrp** with the selcted protocol of HTTP and running on port 4000 which is the port the  Node.ja app is running on. The health check path has also been updated to  **/health** after selecting the right VPC, **ThreeTierWebApp_VPC**. The specified targets will not be added now as we have not created the EC2 instances moreso, I will be making use of autoscaling group.
+![AppTierTargetGroup](media/036_TargetGroupCreateforAppTier.png)
+
+## Working with Load Balancers
+
+Load balancers in AWS distribute incoming application traffic across multiple targets, such as Amazon EC2 instances, containers, and IP addresses, to ensure reliability and high availability. AWS offers three types of load balancers:
+
+1. Application Load Balancer (ALB): Operates at the application layer (Layer 7) and provides advanced routing capabilities based on content. It is ideal for web applications and microservices, supporting features like host-based and path-based routing.
+
+2. Network Load Balancer (NLB): Operates at the transport layer (Layer 4) and is designed for ultra-high performance and low latency. It can handle millions of requests per second and is suited for handling TCP and UDP traffic.
+
+3. Gateway Load Balancer (GLB): Enables deployment, scaling, and management of third-party virtual appliances, such as firewalls, intrusion detection and prevention systems. It combines the capabilities of ALB and NLB.
+
+**Best practices for using AWS load balancers include**
+
+1. Health Checks: Configure health checks to monitor the status of your targets and ensure traffic is only sent to healthy instances.
+Security Groups: Use security groups to control traffic flow to and from your load balancers.
+
+2. Auto Scaling: Integrate with Auto Scaling to dynamically adjust the number of instances in response to traffic changes.
+
+3. Cross-Zone Load Balancing: Enable cross-zone load balancing to distribute traffic evenly across all targets in different Availability Zones.
+Overall, AWS load balancers improve the fault tolerance and scalability of applications by evenly distributing incoming traffic and ensuring efficient resource utilization.
+
+### Internal Load Balancer (App Ter Load Balancer)
+
+For our HTTP Traffic, we will use an Application Load Balancer. The name given to this Load Balancer is **ThreeTierWebApp-ApTieInternal-LB**. The Load balancer will not be receigin internet trafic hence will make it internal.
+The two availabilit zones are us-east-1a and us-east-1b
+Under us-east-1a, i pick the Zone of ThreeTierWebapp_PrivateApp-AZ1(a) and then for us-east-1b a subnet of ThreeTierWebapp_PrivateApp-AZ2(b) was selected as indicated in the image below
+![InternalBCOnfigurations](media/037_PickingTheRightSuentForInternalLB.png). The security group of choice is **ThreeTierWebApp_Private_LB_SG** as this SG will only allow traffic from the  Public Tier EC2 instances. The ALB will be listening for HTTP traffic on port 80. It will be forwarding the traffic to our target group that we just created
+![InterlanALBListerners](media/038_ListenersonInternalALB.png)
+
+![LoadBalncerInternalCreated](media/039_InternalLoadBalancerCreatedWithSuccess.png)
+
+## Creating a Launch Template
+
+An AWS Launch Template is a reusable blueprint for creating EC2 instances, simplifying the instance provisioning process by predefining configuration settings. It ensures uniform configurations across instances, streamlines the launch process, and supports version control for managing changes. Launch Templates integrate with Auto Scaling groups and other AWS services for automated and scalable deployments, enhancing efficiency, consistency, and manageability of EC2 instance provisioning.
+
+The launch template created was named **ThreeTierWebApp_AppTierLunchTemplate**. In the Application and OS Images (Amazon Machine Image) secion, i  selcted the AMI created earlier for the App Tier. For the instance type, I picked the t2.micro.
+In the Key Pair and Network Setting, we will not include them in the Template Creation. The App Tier Security Group was selected which was named **ThreeTierWebApp_AppTier_SG**. IN the advance section, the **three-tier-webapp-EC2-SSM-S3** role was attached as the IAM instance profile.
+
+![AppTierLaunchTemplate](media/040_AppTierLaunchTemplate.png)
+
+## Auto Scaling
+
+AWS Auto Scaling automatically adjusts the number of EC2 instances in your application to maintain performance and cost-efficiency. It ensures that the right number of instances are running to handle the load for your application by dynamically scaling out during demand spikes and scaling in when demand decreases. Auto Scaling integrates with Elastic Load Balancing to distribute traffic efficiently and uses health checks to replace unhealthy instances. It helps maintain application availability and optimizes costs by using only the necessary resources.
