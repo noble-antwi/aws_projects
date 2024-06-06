@@ -175,3 +175,100 @@ For Multi-AZ deployment, in order to achieve high availability and establish fau
 Under the connectivity option, The ThreeTierWebApp VPC was selected after which the DB Subent group gets populated.The option to access it Publicly has also been turn to No. The secueiry grouo for the DB Tier was selected.
 
 All other options were left in theri default state.
+
+![DBCreated](media/022_DBCreated.png)
+
+After the creation, the Reader instance was located in the	us-east-1a zoneAZ, whislt the Writer instance	was located in the	us-east-1b zone
+
+The writer Endpoint is *threetiierwebapp-cluster2.cluster-cftuljbvbg8h.us-east-1.rds.amazonaws.com*
+
+whislt that of reader endpoint is *threetiierwebapp-cluster2.cluster-ro-cftuljbvbg8h.us-east-1.rds.amazonaws.com* as indicated in the image below
+![DBendpoints](media/023_Endpoints.png)
+
+
+### App Tier Instance Deployment
+In this section, we will create an EC2 instance for our app layer and make all necessary software configurations so that the app can run. The app layer consists of a Node.js application that will run on port 4000. We will also configure our database with some data and tables.
+
+#### App Instance Deployment
+
+
+In the slection I will create an EC2 instance for our app layer and make all necessary software configurations so that the app can run. The app layer consists of a Node.js application that will run on port 4000. We will also configure our database with some data and tables.
+
+After Opening the EC2 console, 
+1. i selected Amazon Linux 2 AMI of  T.2 micro instance type
+2. For key pair, i proceeded with a Key pair as the SSM role created will be attached to the VM in order to have access to it on the console directly.
+2. Network Settings, I pick the ThreeTiwerWebApp_VPC nd then for the Subnet, since it is an App layer instance, I slected the ThreeTierWebapp_PrivateApp-AZ1(a) subnet. When it comes to the security group, i selected the one created for the app layer as ThreeTierWebApp_AppTier_SG
+3. The instance will have na IAM Instance Profile attached. The name for the IAM instance role is *three-tier-webapp-EC2-SSN-S3*
+Details of the Role Created are attached below which has two policies
+
+![alt text](media/024_CreatedRole.png)
+
+The first Vm of the App layer below
+![App Intance](media/025_appInstance.png)
+
+
+I tested the app instance to ensure it is able to reach the intenet via the NAT Gateway by pinging 8.8.8.8 after i logged into the iinstance using the SSM option
+
+![InternetConnectionTest](media/026_TestingConnectivityToInternet.png)
+
+## Configuring The  Database
+On the same App instance EC2 console, ti proceeded to download the MySQL CLI uisng the command
+```
+sudo yum install mysql -y
+```
+![CLIinstallation](media/027_MySQLCLI_installation.png)
+
+In order to initiate DB connection with your Aurora RDS writer endpoint.
+
+```
+mysql -h threetiierwebapp-cluster2.cluster-cftuljbvbg8h.us-east-1.rds.amazonaws.com -u antwinob -p
+
+```
+
+
+COnnection to the DB has been established after typing in the password
+![DBCOnnected](media/028_CBConnectionSuccess.png)
+
+The next thing is to create a tdatabse with which we can interract with. The name of the DB to be created is webappdb which will be created with the command CREATE DATABASE webappdb;   
+After the DB was created, a table was also created using the command
+
+``` sql
+CREATE TABLE IF NOT EXISTS transactions(id INT NOT NULL
+AUTO_INCREMENT, amount DECIMAL(10,2), description
+VARCHAR(100), PRIMARY KEY(id));    
+```
+
+Data was inserted into the table using the command
+
+```sql
+INSERT INTO transactions (amount,description) VALUES ('400','groceries');   
+
+```
+![Populate Table With Data](media/029_INSERTdATA.png)
+
+### Configure App Instance
+The first thing we will do is update our database credentials for the app tier. To do this, open the application-code/app-tier/DbConfig.js file from the github repo in your favorite text editor on your computer. You’ll see empty strings for the hostname, user, password and database. Fill this in with the credentials you configured for your database, the writter endpoint of your database as the hostname, and webappdb for the database. Save the file.
+NOTE: This is NOT considered a best practice, and is done for the simplicity of the lab. Moving these credentials to a more suitable place like Secrets Manager is left as an extension for this workshop.
+
+
+
+
+#### Test App Tier
+![alt text](media/032_TestingAppTier.png)
+
+
+#### Testingin Database Connection
+![DBCOnnection](media/033_testingDB.png)
+
+
+### Internal Load Balancing and Auto Scaling
+
+The first thing to be done is to create an AMI of the first App Tier Instance.
+
+![AppTierAMI](<media/034_AppTierTargetGroup copy.png>)
+I selected the ThreeTierWebApp_AppInstace and then oepn the Image and Tmeplates option. The name givent to the App Tier AMI is ThreeTierWebapp_AppTierImage
+![AppTargetGroup](media/034_AppTierTargetGroup.png)
+
+### Creation of a Target Group
+
+A target group in AWS is a collection of endpoints or servers to which an Elastic Load Balancer (ELB) routes traffic. These endpoints, known as targets, can include EC2 instances, IP addresses, or AWS Lambda functions. Target groups are used to route requests based on specific protocols and port numbers, and they are closely associated with Application Load Balancers (ALBs), Network Load Balancers (NLBs), and VPC Lattice configurations. Each target group is defined by a set of health check parameters to monitor the health of the targets and ensure efficient traffic distribution .
