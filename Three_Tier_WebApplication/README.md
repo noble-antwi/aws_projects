@@ -24,20 +24,33 @@ Now that we have gotten introduced to the task at hand, we proceed to execute it
 NB:
 Original Project Source as an AWS Workshop that can be found using the link 
 https://catalog.us-east-1.prod.workshops.aws/workshops/85cd2bb2-7f79-4e96-bdee-8078e469752a/en-US/introduction
-## Project Setup
 
-The setup phase of this workshop involves downloading code from Github, uploading it to an S3 bucket for accessibility by instances, and creating an AWS Identity and Access Management (IAM) EC2 role. This role facilitates secure connections to instances using AWS Systems Manager Session Manager, eliminating the need for SSH key pairs.
+## PART 0: : PROJECT SETUP
+
+To begin this workshop, I first downloaded the code from GitHub and uploaded it to an S3 bucket so my instances could access it. Additionally, I created an AWS Identity and Access Management (IAM) EC2 role to enable secure connections to my instances using AWS Systems Manager Session Manager, eliminating the need for SSH key pairs
 This was started by cloning the orinal project from AWS on Github in order to access the project file as can be seen below:
 ![Cone Projectss](media/002_CloningOriginalProjectFromAWS.png)
 
+The code for the clone is
+```
+git clone https://github.com/aws-samples/aws-three-tier-web-architecture-workshop.git
+
+```
+
 ### Creating S3 Bucket
-I created a buket by name *three-tier-web-application-bucket* which will serve as a place holder for all the application codes and other important file. In the creation process, all the default were maintained in order to achieve maximum security. The bucket was created in the US East (N. Virginia) us-east-1 region.
+I created a buket by name **three-tier-web-application-bucket** which will serve as a place holder for all the application codes and other important file. In the creation process, all the default were maintained in order to achieve maximum security. The bucket was created in the US East (N. Virginia) us-east-1 region.
+
 ![Creating of Bucket](<media/003_Creating of Bucket.png>)
 
 ### IAM EC2 Instance Role Creation
-Role Created name is *three-tier-webapp-EC2-SSM-S3* which has two permissions attached namely
+To set up the necessary permissions for my EC2 instances, I navigated to the IAM dashboard in the AWS console and created a new EC2 role. I selected EC2 as the trusted entity.
+
+While adding permissions, I included the following AWS managed policies to ensure my instances could download code from S3 and use Systems Manager Session Manager for secure connections without needing SSH keys:
+
 1. AmazonSSMManagedInstanceCore
 2. AmazonS3ReadOnlyAccess
+   
+I named this role three-tier-webapp-EC2-SSM-S3 to reflect its purpose and scope.
 
 The tust relationship created is
 ```
@@ -54,36 +67,68 @@ The tust relationship created is
     ]
 }
 ```
-![IAMRoel](media/004_CreatingIAMRole.png)
+![IAMRoleCreation](media/004_CreatingIAMRole.png)
 
 
-### Networking and Security
-In this section we will be building out the VPC networking components as well as security groups that will add a layer of protection around our EC2 instances, Aurora databases, and Elastic Load Balancers.
+## PART 1: NETWORKING AND SECURITY
 
-#### VPC Creation
+In this section, I focused on building out the VPC networking components and security groups to add a layer of protection around my EC2 instances, Aurora databases, and Elastic Load Balancers.
 
-Under this section, i selected VPC only and name it *three_tier_webapp_vpc* iwth CIDR of 10.0.0.0/16
+### Virtual Private Cloud (VPC)
+
+A Virtual Private Cloud (VPC) is a logically isolated section of the AWS cloud where you can launch AWS resources in a virtual network that you define. It provides complete control over your virtual networking environment, including the selection of your own IP address range, the creation of subnets, and the configuration of route tables and network gateways. Essentially, a VPC enables you to build a secure and scalable network infrastructure in the cloud.
+
+To start, I navigated to the VPC dashboard in the AWS console and clicked on "Your VPCs" on the left-hand side. Ensuring that "VPC only" was selected, I filled out the VPC settings with a Name tag and chose a CIDR range of **10.0.0.0/16.** This range allows for the creation of a sufficient number of subnets to accommodate the various tiers of my application architecture. I named the VPC **three_tier_webapp_vpc** to clearly identify it as part of this project.
+
+It is important to note that consistency in the region selection is crucial throughout the project to ensure all resources are deployed in the same geographic area. This consistency helps in reducing latency and potential configuration issues.
+
+
 ![alt text](media/005_VPCOnly.png) 
 
-#### Creation of Subnets
-In this activity as depicted by the Architectural Diagram
+### Creation of Subnets
+
+Subnets are subdivisions within a VPC that allow you to organize and isolate resources within your network. Each subnet resides in a single Availability Zone (AZ) and enables you to segment your VPC's network into distinct logical groups for better security and management.
+
+To create the necessary subnets for my project, I navigated to "Subnets" on the left side of the VPC dashboard and clicked "Create subnet." For this project, I needed six subnets spread across two availability zones. This setup ensures high availability and fault tolerance by distributing resources across multiple AZs.
+
+Each availability zone houses three subnets, corresponding to the three layers of our three-tier architecture: public web, private app, and private database. Here are the names and configurations for the six subnets:
+
+1. ThreeTierWebapp_PublicWeb-AZ1(a)
+2. ThreeTierWebapp_PublicWeb-AZ2(b)
+3. ThreeTierWebapp_PrivateApp-AZ1(a)
+4. ThreeTierWebapp_PrivateApp-AZ2(b)
+5. ThreeTierWebapp_PrivateDB-AZ1(a)
+6. ThreeTierWebapp_PrivateDB-AZ2(b)
+
+For each subnet, I specified the VPC created earlier (three_tier_webapp_vpc), selected the appropriate availability zone, and assigned an appropriate CIDR range (/24). This precise configuration ensures that each tier of the architecture is properly isolated and configured for optimal performance and security.
+
 ![Subnet Creation](media/006_CreationOfSubnets.png)
 
-#### Adding an Internet Gateway
-Though some subnets are named as Public, they are in actual not yet made public to recieve traffic from the internet. This can only be achieved by attaching an Internet Gateway module and configuring the Routes
 
-#### Adding Internet Gateway
+### Adding Internet Gateway (IGW)
 
-Internet Gateway created was calle *ThreeTierWebApp_IGW* which was the only Internet Gatway created in addition to the Default Gateway
+An Internet Gateway (IGW) is a horizontally scaled, redundant, and highly available VPC component that allows communication between instances in your VPC and the internet. It serves as a gateway for outbound internet traffic from the VPC instances and inbound traffic from the internet to the VPC instances. Attaching an IGW to your VPC provides a path for network traffic to flow to and from the internet.
+
+To provide the public subnets in my VPC with internet access, I needed to create and attach an Internet Gateway. Here's how I did it:
+
+I navigated to "Internet Gateway" on the left-hand side of the VPC dashboard. I created the internet gateway by giving it a name and clicking "Create internet gateway." I named it ThreeTierWebApp_IGW.
+
+After creating the internet gateway, I attached it to the VPC I created in the VPC and Subnet Creation step of the workshop. This can be done either through the creation success message or by using the "Actions" drop-down menu. I selected Attach to VPC, chose the three_tier_webapp_vpc from the list, and clicked "Attach internet gateway" to complete the process. This setup allowed my public subnets to have the necessary internet access for the project.y
 ![IGW](media/007_InternetGatewayAddedNotAttached.png)
 
-The IGW however is currently not associated with any subnet since it is not attached to any VPC and then aattachedment to subnets, hence none of the subnet is currenlty public, ie.e receiving internrt traffic.
+VPC Attachment
 
 ![VPCAttachment](media/008_VPCAttachement.png)
 
-#### NAT Gateway Creation
+### NAT Gateway  (Network Address Translation Gateway) Creation
 
-In order for the instances in the app layer private subnet and DB layer Private subnet to be able to access the internet they will need to go through a NAT Gateway. For high availability, we will deploy one NAT gateway in each of your public. In order for the NAT Gatways to have a static IP, I will also create an Elastic IP in the process
+A NAT Gateway (Network Address Translation Gateway) enables instances in a private subnet to connect to the internet or other AWS services while preventing the internet from initiating connections with those instances. This is essential for instances that do not have a public IP address but still need to access external resources for updates or other services.
+
+To allow my instances in the app layer private subnet to access the internet, I needed to create NAT Gateways. For high availability, I deployed one NAT Gateway in each of my public subnets. Here's how I did it:
+
+I navigated to "NAT Gateways" on the left side of the VPC dashboard and clicked "Create NAT Gateway." I filled in the name ThreeTierWebapp_NGW_AZ1, chose one of the public subnets created earlier (ThreeTierWebapp_PublicWeb-AZ1(a)), and allocated an Elastic IP. Then, I clicked "Create NAT gateway."
+
+Next, I repeated the process for the other public subnet. I created another NAT Gateway named ThreeTierWebapp_NGW_AZ2, selected the second public subnet (ThreeTierWebapp_PublicWeb-AZ2(b)), and allocated an Elastic IP. This ensured that instances in the app layer private subnets could access the internet for necessary updates and services, while maintaining high availability across different availability zones.
 
 ![FirstNATGW](media/010_FirstNATGW.png)
 
@@ -91,7 +136,7 @@ The two Gateways are added Successfully with two Elastic IPs (Public Static IPs)
 
 ![ElasticIP](media/012_TwoNGWCreatedSuccesfully.png)
 
-#### Routing Configuration
+### Routing Configuration
 At this stage, I want to create route table in order to directs traffic in my Infratructure to the right resource. A default route table is already created during the creation of the VPC which aids in establishing Private routing between resources in the Network. This route does not see Public Traffic.
 
 Default Routes can be seen below with its details 
@@ -99,42 +144,36 @@ Default Routes can be seen below with its details
 
 #### Adding of Public Routes
 
-As depicted in the video below,  a public Route Table was created by name ThreTierWebApp_Public_RT with the configuation details below.
+First, I created one route table named ThreeTierWebApp_Public_RT for the web layer public subnets. After creating the route table, I added a route that directs traffic from the VPC to the internet gateway. This ensures that any traffic destined for IPs outside the VPC CIDR range is directed to the internet gateway as a target, allowing instances in the public subnets to access the internet.
+Next, I edited the Explicit Subnet Associations of the route table by selecting the two web layer public subnets (ThreeTierWebapp_PublicWeb-AZ2(b) and ThreeTierWebapp_PublicWeb-AZ1(a)) and saving the associations. This step ensures that the route table is associated with the correct subnets.
 
-The routes were updates to direct all oubic traffic to the Internet Gatway and the subnet that are associated with this routes are 
-1. ThreeTierWebapp_PublicWeb-AZ2(b)
-2. ThreeTierWebapp_PublicWeb-AZ1(a)
+
 ![PublicROutes](media/016_PublicROutes.png)
 
 #### Adding of Private Routes
 
-Adding Private Routes will ensure tehe APp Tier does not communicate with the internet Directly but rather through  NAT Gateway. As depicted in the video, Two private routes were created which are 
-1. ThreeTierWebApp_PrivateApp_AZ1(a)_RT : This routes traffic to Instances in the availabeility Zone A. The subent associated to this route is ThreeTierWebapp_PrivateApp-AZ1(a) with the routes configured below
+For the app layer private subnets, I created two more route tables: ThreeTierWebApp_PrivateApp_AZ1(a)_RT and ThreeTierWebApp_PrivateApp_AZ2(b)_RT. These route tables route app layer traffic destined for outside the VPC to the NAT gateway in the respective availability zone. I added the appropriate routes for each route table and associated them with the corresponding private subnets (ThreeTierWebapp_PrivateApp-AZ1(a) and ThreeTierWebapp_PrivateApp-AZ2(b)).
 
 ![alt text](media/017_PrivateAZ1_RT.png)
 
-2. ThreeTierWebApp_PrivateApp_AZ2(b)_RT : Routes Traffic in Availability Zone B. The subnet assocciated to this route is ThreeTierWebapp_PrivateApp-AZ2(b)
-
 ![private AZ2](media/018_PrivateAZ2.png)
 
-NB: Routes are not added for the DB subnet because the DB is managed Directly by AWS
+By configuring routing in this manner, I ensured that traffic flows efficiently and securely between the different layers of my three-tier architecture and between the VPC and external networks.
 
 ### Security Groups
 
-Security groups will tighten the rules around which traffic will be allowed to our Elastic Load Balancers and EC2 instances.
-The first security group you’ll create is for the public, internet facing load balancer. After typing a name and description, add an inbound rule to allow HTTP type traffic for your IP.
+Security Groups
+Security groups act as virtual firewalls that control the inbound and outbound traffic for your instances. They define which traffic is allowed to access your instances based on rules that you specify.
 
-In following security best practices, the security groups are going to be in the from or a daisy chain.
+1. Public Load Balancer Security Group: This security group is for the public, internet-facing load balancer. I created a security group and added an inbound rule to allow HTTP traffic. This rule allows incoming traffic on port 80 from my IP address.
 
-The first security group you’ll create is for the public, internet facing load balancer. After typing a name and description, add an inbound rule to allow HTTP type traffic for your IP.
+2. Public Web Tier Instances Security Group: This security group is for the public instances in the web tier. I created a security group and added inbound rules to allow HTTP traffic from both the internet-facing load balancer security group and my IP address. This setup ensures that traffic from the public-facing load balancer can reach the instances, and I can access the instances for testing.
 
-The second security group you’ll create is for the public instances in the web tier. After typing a name and description, add an inbound rule that allows HTTP type traffic from your internet facing load balancer security group you created in the previous step. This will allow traffic from your public facing load balancer to hit your instances. Then, add an additional rule that will allow HTTP type traffic for your IP. This will allow you to access your instance when we test.
+4. Internal Load Balancer Security Group: This security group is for the internal load balancer. I created a new security group and added an inbound rule to allow HTTP traffic from the public web tier instances security group. This allows traffic from the web tier instances to reach the internal load balancer.
 
-The third security group will be for our internal load balancer. Create this new security group and add an inbound rule that allows HTTP type traffic from your public instance security group. This will allow traffic from your web tier instances to hit your internal load balancer.
+5. Private App Tier Instances Security Group: This security group is for the private instances in the app tier. I created a security group and added inbound rules to allow TCP traffic on port 4000 from the internal load balancer security group and my IP address. This configuration allows the internal load balancer to forward traffic on port 4000 to the private instances, and I can access the instances for testing.
 
-The fourth security group we’ll configure is for our private instances. After typing a name and description, add an inbound rule that will allow TCP type traffic on port 4000 from the internal load balancer security group you created in the previous step. This is the port our app tier application is running on and allows our internal load balancer to forward traffic on this port to our private instances. You should also add another route for port 4000 that allows your IP for testing.
-
-The fifth security group we’ll configure protects our private database instances. For this security group, add an inbound rule that will allow traffic from the private instance security group to the MYSQL/Aurora port (3306).
+6. Private Database Instances Security Group: This security group protects the private database instances. I added an inbound rule to allow traffic from the private app tier instances security group to the MySQL/Aurora port (3306). This rule ensures that only traffic from the app tier instances can access the database instances.
 
 ![SecurityGroups](media/019_SecurityGroups.png)
 
@@ -153,43 +192,50 @@ Here is a video embedded directly in the Markdown file:
 
 
 
-## Database Deployment
+## PART 2: DATABASE DEPLOYMENT
 
 In the RDS Dashboard, the first thing to be done is the creation of the DB subnet group.
 
 ![DB Subnet](media/021_DBSubnet.png)
 
-#### Database Deployment
-I created the DB with the following details
-Database Creations Details
+### Database Deployment
 
-I picked Standard Create and then selected Aurora (MySQL Compatible Version). For the Templates, i went with Dev/Test since this is going to be a Test and not a production workload.
-I named the DB Cluster Identifier as ThreeTiierWebApp-Cluster2
-For the credentials
-Master User is antwinob with Password been 0242.ann
-Encryption is een managed by aws/secretesmanager 
+Amazon RDS (Relational Database Service) is a managed database service provided by AWS that makes it easier to set up, operate, and scale relational databases in the cloud. It supports multiple database engines, including MySQL, PostgreSQL, Oracle, SQL Server, and Amazon Aurora.
 
-In the configuration option, I selected Aurora Standard. IN teh DB instance Class, I selected Memory Optimised Class specifically db.r5.xlarge with 4vCPUs and 32GB RAM, and a Netork of 4750 Mbps
-For Multi-AZ deployment, in order to achieve high availability and establish fault tolereance, we went for Multi AZ Deployment.
+Aurora is a MySQL and PostgreSQL-compatible relational database built for the cloud, offering greater performance, scalability, and reliability compared to traditional database solutions. It is fully compatible with MySQL and PostgreSQL, making it easy to migrate existing applications to Aurora.
 
-Under the connectivity option, The ThreeTierWebApp VPC was selected after which the DB Subent group gets populated.The option to access it Publicly has also been turn to No. The secueiry grouo for the DB Tier was selected.
+When creating an RDS Aurora database, you have various configuration options to choose from to meet the requirements of your workload, including database engine version, instance class, storage type, backup retention period, and multi-AZ deployment for high availability.
 
-All other options were left in theri default state.
+
+RDS (Relational Database Service)
+Amazon RDS (Relational Database Service) is a managed database service provided by AWS that makes it easier to set up, operate, and scale relational databases in the cloud. It supports multiple database engines, including MySQL, PostgreSQL, Oracle, SQL Server, and Amazon Aurora.
+
+Aurora is a MySQL and PostgreSQL-compatible relational database built for the cloud, offering greater performance, scalability, and reliability compared to traditional database solutions. It is fully compatible with MySQL and PostgreSQL, making it easy to migrate existing applications to Aurora.
+
+When creating an RDS Aurora database, you have various configuration options to choose from to meet the requirements of your workload, including database engine version, instance class, storage type, backup retention period, and multi-AZ deployment for high availability.
+
+**Database Creation Details**
+
+I began by selecting "Standard Create" and opting for Aurora (MySQL Compatible Version) for the ThreeTierWebApp project's database. Choosing the "Dev/Test" template was the next step, aligning the setup with test and development workloads. I assigned the DB Cluster Identifier as "ThreeTierWebApp-Cluster2" and configured the master user as "antwinob"  to manage access securely. To enhance security measures, I enabled encryption managed by AWS Secrets Manager.
+
+I selected Aurora Standard and opted for the Memory Optimized Class (db.r5.xlarge) with 4 vCPUs and 32GB RAM to ensure optimal performance. High availability and fault tolerance were achieved by enabling Multi-AZ deployment. Associating the database with the ThreeTierWebApp VPC and selecting the appropriate DB subnet group ensured proper network configuration.
+
+To enhance security further, I disabled public accessibility for the database, limiting access to authorized resources only. Additionally, I configured the security group for the DB tier to control inbound and outbound traffic effectively. With these configurations, the RDS Aurora database meets the requirements of the ThreeTierWebApp project, ensuring high performance, availability, and security for the application's data storage needs.
+
 
 ![DBCreated](media/022_DBCreated.png)
 
-After the creation, the Reader instance was located in the	us-east-1a zoneAZ, whislt the Writer instance	was located in the	us-east-1b zone
+After the creation, the Reader instance was located in the us-east-1a zone, while the Writer instance was located in the us-east-1b zone.
 
-The writer Endpoint is *threetiierwebapp-cluster2.cluster-cftuljbvbg8h.us-east-1.rds.amazonaws.com*
+The writer Endpoint is threetiierwebapp-cluster2.cluster-cftuljbvbg8h.us-east-1.rds.amazonaws.com, while that of the reader endpoint is threetiierwebapp-cluster2.cluster-ro-cftuljbvbg8h.us-east-1.rds.amazonaws.com.
 
-whislt that of reader endpoint is *threetiierwebapp-cluster2.cluster-ro-cftuljbvbg8h.us-east-1.rds.amazonaws.com* as indicated in the image below
 ![DBendpoints](media/023_Endpoints.png)
 
 
 ### App Tier Instance Deployment
 In this section, we will create an EC2 instance for our app layer and make all necessary software configurations so that the app can run. The app layer consists of a Node.js application that will run on port 4000. We will also configure our database with some data and tables.
 
-#### App Instance Deployment
+## PART 3: APP TIER INSTANCE DEPLOYMENT
 
 
 In the slection I will create an EC2 instance for our app layer and make all necessary software configurations so that the app can run. The app layer consists of a Node.js application that will run on port 4000. We will also configure our database with some data and tables.
@@ -211,8 +257,8 @@ I tested the app instance to ensure it is able to reach the intenet via the NAT 
 
 ![InternetConnectionTest](media/026_TestingConnectivityToInternet.png)
 
-## Configuring The  Database
-On the same App instance EC2 console, ti proceeded to download the MySQL CLI uisng the command
+###  Configuring The  Database
+On the same App instance EC2 console, I proceeded to download the MySQL CLI uisng the command
 ```
 sudo yum install mysql -y
 ```
@@ -226,10 +272,12 @@ mysql -h threetiierwebapp-cluster2.cluster-cftuljbvbg8h.us-east-1.rds.amazonaws.
 ```
 
 
-COnnection to the DB has been established after typing in the password
+Connection to the DB has been established after typing in the password
+
 ![DBCOnnected](media/028_CBConnectionSuccess.png)
 
-The next thing is to create a tdatabse with which we can interract with. The name of the DB to be created is webappdb which will be created with the command CREATE DATABASE webappdb;   
+The next thing is to create a database with which we can interract with. The name of the DB to be created is **webappdb** which will be created with the command ``CREATE DATABASE webappdb;``   
+
 After the DB was created, a table was also created using the command
 
 ``` sql
@@ -247,17 +295,17 @@ INSERT INTO transactions (amount,description) VALUES ('400','groceries');
 ![Populate Table With Data](media/029_INSERTdATA.png)
 
 ### Configure App Instance
+
 The first thing we will do is update our database credentials for the app tier. To do this, open the application-code/app-tier/DbConfig.js file from the github repo in your favorite text editor on your computer. You’ll see empty strings for the hostname, user, password and database. Fill this in with the credentials you configured for your database, the writter endpoint of your database as the hostname, and webappdb for the database. Save the file.
 NOTE: This is NOT considered a best practice, and is done for the simplicity of the lab. Moving these credentials to a more suitable place like Secrets Manager is left as an extension for this workshop.
 
+### Test App Tier
 
-
-
-#### Test App Tier
 ![alt text](media/032_TestingAppTier.png)
 
 
 #### Testingin Database Connection
+
 ![DBCOnnection](media/033_testingDB.png)
 
 
@@ -266,7 +314,9 @@ NOTE: This is NOT considered a best practice, and is done for the simplicity of 
 The first thing to be done is to create an AMI of the first App Tier Instance.
 
 ![AppTierAMI](<media/034_AppTierTargetGroup copy.png>)
+
 I selected the ThreeTierWebApp_AppInstace and then oepn the Image and Tmeplates option. The name givent to the App Tier AMI is ThreeTierWebapp_AppTierImage
+
 ![AppTargetGroup](media/034_AppTierTargetGroup.png)
 
 ### Creation of a Target Group
