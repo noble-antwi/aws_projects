@@ -21,19 +21,18 @@ Our goal is to address several key aspects in designing our application infrastr
 In summary, our approach focuses on achieving a well-structured, scalable, highly available, fault-tolerant, and secure infrastructure tailored to meet the demands of modern application environments.
 
 Now that we have gotten introduced to the task at hand, we proceed to execute it.
-NB:
-Original Project Source as an AWS Workshop that can be found using the link 
-https://catalog.us-east-1.prod.workshops.aws/workshops/85cd2bb2-7f79-4e96-bdee-8078e469752a/en-US/introduction
+NB: Original Project Source as an AWS Project that can be found using the link [Click to View the Original Project](https://catalog.us-east-1.prod.Projects.aws/Projects/85cd2bb2-7f79-4e96-bdee-8078e469752a/en-US/introduction)
+
 
 ## PART 0: : PROJECT SETUP
 
-To begin this workshop, I first downloaded the code from GitHub and uploaded it to an S3 bucket so my instances could access it. Additionally, I created an AWS Identity and Access Management (IAM) EC2 role to enable secure connections to my instances using AWS Systems Manager Session Manager, eliminating the need for SSH key pairs
+To begin this Project, I first downloaded the code from GitHub and uploaded it to an S3 bucket so my instances could access it. Additionally, I created an AWS Identity and Access Management (IAM) EC2 role to enable secure connections to my instances using AWS Systems Manager Session Manager, eliminating the need for SSH key pairs
 This was started by cloning the orinal project from AWS on Github in order to access the project file as can be seen below:
 ![Cone Projectss](media/002_CloningOriginalProjectFromAWS.png)
 
 The code for the clone is
 ```
-git clone https://github.com/aws-samples/aws-three-tier-web-architecture-workshop.git
+git clone https://github.com/aws-samples/aws-three-tier-web-architecture-Project.git
 
 ```
 
@@ -113,7 +112,7 @@ To provide the public subnets in my VPC with internet access, I needed to create
 
 I navigated to "Internet Gateway" on the left-hand side of the VPC dashboard. I created the internet gateway by giving it a name and clicking "Create internet gateway." I named it ThreeTierWebApp_IGW.
 
-After creating the internet gateway, I attached it to the VPC I created in the VPC and Subnet Creation step of the workshop. This can be done either through the creation success message or by using the "Actions" drop-down menu. I selected Attach to VPC, chose the three_tier_webapp_vpc from the list, and clicked "Attach internet gateway" to complete the process. This setup allowed my public subnets to have the necessary internet access for the project.y
+After creating the internet gateway, I attached it to the VPC I created in the VPC and Subnet Creation step of the Project. This can be done either through the creation success message or by using the "Actions" drop-down menu. I selected Attach to VPC, chose the three_tier_webapp_vpc from the list, and clicked "Attach internet gateway" to complete the process. This setup allowed my public subnets to have the necessary internet access for the project.y
 ![IGW](media/007_InternetGatewayAddedNotAttached.png)
 
 VPC Attachment
@@ -297,7 +296,7 @@ INSERT INTO transactions (amount,description) VALUES ('400','groceries');
 ### Configure App Instance
 
 The first thing we will do is update our database credentials for the app tier. To do this, open the application-code/app-tier/DbConfig.js file from the github repo in your favorite text editor on your computer. You’ll see empty strings for the hostname, user, password and database. Fill this in with the credentials you configured for your database, the writter endpoint of your database as the hostname, and webappdb for the database. Save the file.
-NOTE: This is NOT considered a best practice, and is done for the simplicity of the lab. Moving these credentials to a more suitable place like Secrets Manager is left as an extension for this workshop.
+NOTE: This is NOT considered a best practice, and is done for the simplicity of the lab. Moving these credentials to a more suitable place like Secrets Manager is left as an extension for this Project.
 
 ### Test App Tier
 
@@ -347,7 +346,7 @@ Security Groups: Use security groups to control traffic flow to and from your lo
 3. Cross-Zone Load Balancing: Enable cross-zone load balancing to distribute traffic evenly across all targets in different Availability Zones.
 Overall, AWS load balancers improve the fault tolerance and scalability of applications by evenly distributing incoming traffic and ensuring efficient resource utilization.
 
-### Internal Load Balancer (App Ter Load Balancer)
+## PART 4: INTERNAL LOAD BALANCING AND AUTO SCALING
 
 For our HTTP Traffic, we will use an Application Load Balancer. The name given to this Load Balancer is **ThreeTierWebApp-ApTieInternal-LB**. The Load balancer will not be receigin internet trafic hence will make it internal.
 The two availabilit zones are us-east-1a and us-east-1b
@@ -387,7 +386,7 @@ This is the confirmation of the creation of the Application Tier ASG from the Im
 ![AppTierASGCreated](media/043_AppTierASGCreatedComplter.png)
 
 
-## Web Tier Instance Deployment
+## PART 5 : WEB TIER INSTANCE DEPLOYEMNT
 In this section, we will undertake the comprehensive deployment of an EC2 instance dedicated to the web tier. This process will encompass the provisioning of the instance, configuration of network settings, installation and configuration of the NGINX web server, and deployment of a React.js website. Detailed steps and considerations will ensure a robust and scalable web tier, crucial for the performance and availability of our application.
 
 ## updating The Config File
@@ -553,9 +552,9 @@ By following these steps, I successfully configured NGINX to serve my React appl
 
 ![DB Page Running Smoothly](media/054_DBPage.png)
 
-## External Load Balancer and Auto Scaling
+## PART 6 : EXTERNAL LOAD BALANCER AND AUTO SCALING
 
-In this part of the workshop, I will create an Amazon Machine Image (AMI) of the web tier instance I just set up. Using this AMI, I will configure an autoscaling group with an externally facing load balancer. This process will ensure that the web tier is highly available, automatically adjusting the number of instances to handle varying levels of traffic and providing a robust, scalable solution for my application.
+In this part of the Project, I will create an Amazon Machine Image (AMI) of the web tier instance I just set up. Using this AMI, I will configure an autoscaling group with an externally facing load balancer. This process will ensure that the web tier is highly available, automatically adjusting the number of instances to handle varying levels of traffic and providing a robust, scalable solution for my application.
 
 ### Web Tier AMI
 
@@ -563,6 +562,7 @@ To create an Amazon Machine Image (AMI) of the web tier instance, I first naviga
 ![WebTiwerAMI](media/055_webTuerAMI.png)
 
 ### Target Group
+
 While the AMI was being created, I went ahead and created the target group to use with the load balancer. On the EC2 dashboard, I navigated to "Target Groups" under "Load Balancing" on the left-hand side and clicked on "Create Target Group."
 
 The purpose of forming this target group was to balance traffic across my public web tier instances using the load balancer. I selected "Instances" as the target type and named it ThreeTierWebApp-WebTierTargetGrp.
@@ -614,3 +614,6 @@ ThreeTierWebApp-WebTierExtn-LB-1792305950.us-east-1.elb.amazonaws.com
 
 
 
+
+The Full Video Representation of the running app can be found using the Link
+[Click to Play](https://drive.google.com/file/d/1GQHy6nxwzfzSPL3F6-iOEPlcMoGBpyxD/view?usp=sharing)
