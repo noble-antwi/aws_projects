@@ -319,3 +319,248 @@ In the Key Pair and Network Setting, we will not include them in the Template Cr
 ## Auto Scaling
 
 AWS Auto Scaling automatically adjusts the number of EC2 instances in your application to maintain performance and cost-efficiency. It ensures that the right number of instances are running to handle the load for your application by dynamically scaling out during demand spikes and scaling in when demand decreases. Auto Scaling integrates with Elastic Load Balancing to distribute traffic efficiently and uses health checks to replace unhealthy instances. It helps maintain application availability and optimizes costs by using only the necessary resources.
+The name of the auto scaling group for the Applicatin Tier is **ThreeTierWebApp_AppTierASG** which the Launch template being **ThreeTierWebApp_AppTierLunchTemplate**
+I then proceeded to select the created VPC of ****ThreeTierWebApp_AppTierLunchTemplate**** withe two private App Tier subnets namely *ThreeTierWebapp_PrivateApp-AZ1(a)* and *ThreeTierWebapp_PrivateApp-AZ2(b)*
+In the advanced options section, i picked the option to attached a Load balancer where in the Target Group option, I selected the **ThreeTierWebApp-AppTierTargetGrp | HTTP** target i created for the Appliation Tier. I also check the option to Turn on Elastic Load Balancing Health Checks which ensure Instances are healthy before sending traffic to them.
+When it comes to the group size and scaling option, these are the configurations
+1. Desired Capacity = 2
+2. Minnimum Desired Capacity = 2
+3. Maximum Desired Capacity = 4
+In the Auto scaling Policy, the choice of selection was Target Tracking Scaling Policy with a policy name of **ThreeTierWebApp_AppTierScalingPolicy** and a Metric type
+ of Average CPU Utilization. Target value is set to 75 and Instance warmup set to 300 seconds. For replacement policy, mixed Behaviour was picked. In order to be alerted on the sstate of instances working with this auto scaling group, I set up a Simple Notifcation Service Topic in order to send laerts when events like, launch, temirnate, fail to launch and fail to temrinate occur as can be verified from the attached image.
+ ![AppTierASGAlarm](media/041_SNSOnAppTierASG.png)
+
+ The auto scaling group immediately get to work as it spins up two instances. The original instance created upon whcih the AMI was built has been turned off hence the AS spins up two which will be the desired capacity according to the configuration of the ASG as can be seen from the attached image below
+ ![ASWorking](media/042_ASGAppTierWorking.png)
+
+This is the confirmation of the creation of the Application Tier ASG from the Image Below
+![AppTierASGCreated](media/043_AppTierASGCreatedComplter.png)
+
+
+## Web Tier Instance Deployment
+In this section, we will undertake the comprehensive deployment of an EC2 instance dedicated to the web tier. This process will encompass the provisioning of the instance, configuration of network settings, installation and configuration of the NGINX web server, and deployment of a React.js website. Detailed steps and considerations will ensure a robust and scalable web tier, crucial for the performance and availability of our application.
+
+## updating The Config File
+Before we create and configure the web instances, I have already made the necessary update to the application-code/nginx.conf file from the repository we downloaded. Specifically, at line 58, I replaced [INTERNAL-LOADBALANCER-DNS] with our internal load balancer’s DNS entry. You can verify this by navigating to your internal load balancer's details page. The DNS entry used is internal-ThreeTierWebApp-ApTieInternal-LB-848504744.us-east-1.elb.amazonaws.com.
+
+Here's the updated section of the nginx.conf file:
+
+```
+upstream backend {
+    server internal-ThreeTierWebApp-ApTieInternal-LB-848504744.us-east-1.elb.amazonaws.com;
+}
+```
+With this configuration in place, NGINX is now set to route traffic to the correct internal load balancer, ensuring seamless communication within the web tier. Now we can proceed with creating and configuring the web instances.
+![InternalLBDNS Entry](media/044_InternalLBDNS.png)
+
+Next, I have uploaded this updated nginx.conf file along with the entire application-code/web-tier folder to the S3 bucket we created for this lab. This ensures all necessary files are centrally stored and easily accessible for the deployment process. This can be seen from the image below
+
+![File and Folder Upload](media/045_uploadFolderandFiles.png)
+
+### Web Instance Deployment
+Now it's time to deploy our web instance! We'll follow a similar process to the one we used for the App Tier instance in Part 3, with a few important differences to tailor this instance for the web tier. Here's how I set everything up:
+
+**1. Instance Creation:**
+
+    a. AMI: I selected the Amazon Linux 2 AMI, which provides a stable and secure environment for our web server.
+    b. Instance Type: I chose the t2.micro instance type to keep costs low while maintaining adequate performance for our web tier.
+
+**2. Configure Instance Details::**
+    Now it's time to deploy our web instance! We'll follow a similar process to the one we used for the App Tier instance in Part 3, with a few important differences to tailor this instance for the web tier. Here's how I set everything up:
+
+First, I selected the Amazon Linux 2 AMI, which provides a stable and secure environment for our web server. I chose the t2.micro instance type to keep costs low while maintaining adequate performance for our web tier. For the network selection, I switched from the Default VPC to the ThreeTierWebApp_VPC we created earlier. This ensures our instance is part of the same network architecture as the rest of our application. Since this will be a public-facing instance, I provisioned it in one of our public subnets and enabled the option to auto-assign a public IP address, making our web instance accessible to users.
+
+I selected the three-tier-webapp-EC2-SSM-S3 IAM role, which includes the AmazonS3ReadOnlyAccess and AmazonSSMManagedInstanceCore policies. This allows us to manage the instance using Session Manager and access S3 in a read-only capacity. For security, I chose the ThreeTierWebApp_WebTier_SG security group. This group has two inbound rules: one that allows access from my personal IP for testing purposes, ensuring I can securely access the instance while configuring and testing it, and another that allows access from the Public Facing Load Balancer, enabling our web traffic to be properly routed.
+
+To keep things organized, I tagged the instance with the name ThreeTierWebApp_WebInstance, making it easy to identify in the AWS Management Console. I configured the storage with an 8 GB EBS volume, which is sufficient for the operating system and initial web server setup. This can be adjusted later based on our website's requirements.
+
+In the Advanced Details section, I ensured the IAM instance profile was set to the three-tier-webapp-EC2-SSM-S3 role. This enables access to the instance using AWS Systems Manager Session Manager, allowing for easy and secure management without the need for a key pair. I left all other options in their default state, reviewed all settings carefully, and then launched the instance.
+
+With these settings, the instance has been created and is now up and running, ready to handle web traffic for our application. This careful configuration ensures that our web tier is both accessible and secure, setting the stage for a robust and reliable deployment.
+![Web Instance Done](media/046_webtierinstanceCreated.png)
+
+### Connect to Instance
+First, I opened the AWS Management Console and navigated to the EC2 dashboard. From there, I selected the ThreeTierWebApp_WebInstance and used the Session Manager to connect, thanks to the IAM role three-tier-webapp-EC2-SSM-S3 that we assigned earlier.
+
+Once connected, I switched to the ec2-user by running the following command:
+```
+sudo -su ec2-user
+```
+With the ec2-user session active, I tested the internet connectivity by pinging Google's public DNS server: 
+```
+With the ec2-user session active, I tested the internet connectivity by pinging Google's public DNS server:
+```
+The pings were successful, confirming that the instance has internet connectivity. This is an important step to ensure that our web instance can reach external resources and updates.
+
+![Ping Server](media/047_Ping.png)
+
+## Configure Web Instance
+To ensure our web instance is fully equipped to run our front-end application, I installed NVM (Node Version Manager) and Node.js, the JavaScript runtime environment. Here's a breakdown of the installation process:
+
+![NVM Installation on Web Instance](media/048_NVMInstall.png)
+1. Install NVM:
+ ```
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+```
+his command fetches the installation script for NVM from its GitHub repository and executes it using bash, enabling us to manage multiple Node.js versions effortlessly.
+
+2. Apply Changes:
+```
+source ~/.bashrc
+```
+After NVM installation, I sourced the ~/.bashrc file to apply the changes made by the installation script. This ensures that NVM commands are available in the current shell session.
+
+3. Install Node.js:
+```
+nvm install 16
+
+```
+With NVM set up, I installed Node.js version 16, the latest LTS (Long-Term Support) version at the time, using the command above. This version is recommended for its stability and long-term support.
+
+4. Activate Node.js:
+```nvm use 16```
+Finally, I activated Node.js version 16 with the nvm use command. This sets the installed Node.js version as the default for the current shell session, ensuring that any Node.js-related commands and applications will use version 16.
+
+By following these steps, our web instance is now fully prepared with NVM and Node.js, ready to run our front-end application and handle any related tasks efficiently.
+
+To download our web tier code from the S3 bucket, I executed the following commands:
+
+1. Navigate to Home Directory:
+
+
+``cd ~/``
+This command changes the current directory to the home directory (~/) to ensure we're in the right location to download the code.
+
+2. Download Web Tier Code:
+``   aws s3 cp s3://three-tier-web-application-bucket/web-tier/ web-tier --recursive``
+
+Using the AWS CLI (aws s3 cp), I copied all the files and directories from the specified S3 bucket path (s3://three-tier-web-application-bucket/web-tier/) to a local directory named web-tier. The --recursive flag ensures that all subdirectories and their contents are downloaded as well.
+
+With these commands, our web tier code has been successfully downloaded from the S3 bucket and is now available locally in the web-tier directory for further configuration and deployment.
+
+![S3 Bucket Donwload Web Tier](media/049_DownloadFromS3Bucket.png)
+
+To navigate to the web-layer folder, create the build folder for the React app, and prepare our code for serving, I executed the following commands:
+1. Navigate to Web Tier Directory:
+
+``cd ~/web-tier``
+This command changes the current directory to the web-tier directory where our web tier code has been downloaded.
+
+2. Install Dependencies:
+``npm install``
+Using npm, I installed all the dependencies required for our React application. This ensures that all necessary libraries and packages are available for building our app.
+
+3. Create Build Folder
+
+``npm run build``
+
+With the dependencies installed, I ran the build script (npm run build) to generate a production-ready build of our React application. This process compiles our React components, bundles JavaScript files, and optimizes assets for better performance.
+
+By following these steps, our React app is now built and ready to be served. The build folder contains all the necessary files to deploy our web application and serve it to users.
+
+![Buimding the App](media/050_BldigAppTier.png)
+
+To configure NGINX as a web server to serve our application on port 80 and direct API calls to the internal load balancer, I installed NGINX using the following command:
+```sudo amazon-linux-extras install nginx1 -y```
+This command installs NGINX version 1 from the Amazon Linux Extras repository. -y is used to automatically answer "yes" to any prompts, ensuring that the installation process proceeds without manual intervention.
+![INginX Installation](media/051_NGINXInstallaion.png)
+
+To navigate to the NGINX configuration directory and list the files, I executed the following commands:
+```cd /etc/nginx
+ls
+```
+This set of commands first changes the directory to /etc/nginx, where NGINX configuration files are typically located, and then lists the contents of that directory using the ls command. This allows us to see all the configuration files present in the NGINX directory.
+
+To replace the default NGINX configuration file with the one uploaded to S3, I executed the following command:
+``sudo rm nginx.conf``
+
+``sudo aws s3 cp s3://three-tier-web-application-bucket/nginx.conf /etc/nginx/nginx.conf``
+With these commands, we're removing the default NGINX configuration file and replacing it with the custom configuration file you uploaded to your S3 bucket.
+![NginxConfiguration](media/052_NginxConf.png)
+
+After configuring NGINX with the custom settings, I needed to restart the service and ensure it had the proper permissions to access our files. Here's how I did it:
+
+First, I restarted NGINX to apply the new configuration:
+
+``sudo service nginx restart``
+
+This command ensures that NGINX uses the updated nginx.conf file we downloaded from the S3 bucket.
+
+Next, I set the correct permissions for the files in the /home/ec2-user directory to make sure NGINX can access them:
+``chmod -R 755 /home/ec2-user``
+
+This step was crucial to avoid any permission issues that might prevent NGINX from serving our files properly.
+
+To ensure that NGINX starts automatically whenever the instance reboots, I enabled it to start on boot:
+
+``sudo chkconfig nginx on``
+With NGINX configured and running, I plugged the public IP of my web tier instance into my browser. This IP can be found on the Instance Details page in the EC2 dashboard.
+
+Seeing my website live was a great moment! If the database connection is set up correctly, the website not only displays but also allows interaction with the database. I tested this by adding some data, and it worked perfectly. However, I made sure to be careful with the delete button, as it would clear all entries in the database.
+
+By following these steps, I successfully configured NGINX to serve my React application and handle API calls, ensuring a smooth deployment and functionality.
+![ApplicationHome](media/053_ApplicationHomeInterface.png)
+
+![DB Page Running Smoothly](media/054_DBPage.png)
+
+## External Load Balancer and Auto Scaling
+
+In this part of the workshop, I will create an Amazon Machine Image (AMI) of the web tier instance I just set up. Using this AMI, I will configure an autoscaling group with an externally facing load balancer. This process will ensure that the web tier is highly available, automatically adjusting the number of instances to handle varying levels of traffic and providing a robust, scalable solution for my application.
+
+### Web Tier AMI
+
+To create an Amazon Machine Image (AMI) of the web tier instance, I first navigated to "Instances" on the left-hand side of the EC2 dashboard. I selected the web tier instance we created and, under "Actions," chose "Image and templates," then clicked "Create Image." I named the image ThreeTierWebApp-WebTierImage and added the description, "This will be the image for the web tier instances." After clicking "Create image," I waited a few minutes for the process to complete. To monitor the status of the image creation, I went to "AMIs" under the "Images" section on the left-hand navigation panel of the EC2 dashboard.
+![WebTiwerAMI](media/055_webTuerAMI.png)
+
+### Target Group
+While the AMI was being created, I went ahead and created the target group to use with the load balancer. On the EC2 dashboard, I navigated to "Target Groups" under "Load Balancing" on the left-hand side and clicked on "Create Target Group."
+
+The purpose of forming this target group was to balance traffic across my public web tier instances using the load balancer. I selected "Instances" as the target type and named it ThreeTierWebApp-WebTierTargetGrp.
+
+I set the protocol to HTTP and the port to 80, which is the port NGINX is listening on. I selected the VPC ThreeTierWebApp_VPC and changed the health check path to /health.
+
+After clicking "Next," I skipped the step to register any targets for now and proceeded to create the target group.
+
+![alt text](media/055_webTuerAMI.png)
+
+### Internet Facing Load Balancer
+
+When creating the Internet Facing Load Balancer, I selected the Application Load Balancer option and named it "ThreeTierWebApp-WebTierExtn-LB," choosing "Internet facing" and IPv4 for IP addressing type, with the VPC set to "ThreeTierWebApp_VPC," and selected the appropriate subnets for each availability zone to ensure internet connectivity, and assigned the security group "ThreeTierWebApp_Public_LB_SG" allowing inbound traffic from my personal computer and the internet, while under the listeners section, I selected the target group "ThreeTierWebApp-WebTierTargetGrp" for routing HTTP traffic.
+![ExternalLB](media/057_ExternalLoadBalancerProvisioning.png)
+
+## Launch Template
+
+To configure Auto Scaling, I first created a Launch template with the AMI we previously created. On the left side of the EC2 dashboard, I navigated to "Launch Template" under "Instances" and clicked "Create Launch Template."
+
+I named the Launch Template "ThreeTierWebApp_WebTierLaunchTemplate" and included the Webb tier AMI we created earlier under "Application and OS Images."
+
+For the instance type, I selected t2.micro, and I didn't include Key pair and Network Settings in the template since we don't need a key pair to access our instances, and network information will be set in the autoscaling group.
+
+I set the correct security group for our web tier and, under Advanced details, used the same IAM instance profile we've been using for our EC2 instances.
+
+
+### Auto Scaling
+
+To create the Auto Scaling Group for our web instances, I navigated to "Auto Scaling Groups" under "Auto Scaling" on the left side of the EC2 dashboard and clicked "Create Auto Scaling group."
+
+I named the Auto Scaling group "ThreeTierWebApp_WebTierASG" and selected the Launch Template we just created, which is "ThreeTierWebApp_WebTierLaunchTemplate."
+
+Under the network section, I changed it to the "Three Tier Web App VPC" and selected the two public subnets: "ThreeTierWebapp_PublicWeb-AZ2(b)" and "ThreeTierWebapp_PublicWeb-AZ1(a)."
+
+For the next step, I attached this Auto Scaling Group to the Load Balancer we just created by selecting the existing web tier load balancer's target group from the dropdown, which is "ThreeTierWebApp-WebTierExtn-LB."
+
+In the capacity settings, I set the desired capacity to 2, minimum to 2, and maximum to 4.
+
+I left every other option at its default value and then created the Auto Scaling group, as confirmed from the attached image.
+This ensures two new servers are added as can be seen from the attached screen where they were Initializing
+
+![alt text](media/059_ScalingINAction.png)
+
+The application Should now be servered form teh DNS endpoint of the external Load Balancer 
+```
+ThreeTierWebApp-WebTierExtn-LB-1792305950.us-east-1.elb.amazonaws.com
+```
+![Application ENdpint](<media/060_External LB Running App.png>)
+
+
+
