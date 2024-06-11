@@ -612,8 +612,5 @@ ThreeTierWebApp-WebTierExtn-LB-1792305950.us-east-1.elb.amazonaws.com
 ```
 ![Application ENdpint](<media/060_External LB Running App.png>)
 
-
-
-
 The Full Video Representation of the running app can be found using the Link
 [Click to Play](https://drive.google.com/file/d/1GQHy6nxwzfzSPL3F6-iOEPlcMoGBpyxD/view?usp=sharing)
