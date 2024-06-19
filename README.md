@@ -12,7 +12,7 @@ This repository serves as a hub for exploring and learning about AWS through pra
 
 ## Projects Included
 
-- **Project 1:** Hositng a Static Website on S3
+- **Project 1:** Hosting a Static Website on S3
 - **Project 2:** Building a Three Tier Web Application
 
 Each project is organized into its own directory within this repository. You can explore the details, setup instructions, and learn how to deploy and utilize AWS services effectively in various use cases.
