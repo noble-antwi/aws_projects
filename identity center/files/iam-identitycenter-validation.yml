@@ -1,0 +1,122 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS IAM Identity Center workshop base template."
+
+Parameters:
+  LatestAmiId:
+    Description: Latest EC2 AMI from Systems Manager Parameter Store
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+
+Resources:
+  #Configure the VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.1.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: IdentityWorkshopVPC
+
+#Configure Public Subnet A
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: "10.1.1.0/24"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public Subnet A (AZ1)
+
+#Configure Public Subnet B
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: "10.1.3.0/24"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public Subnet B (AZ2)
+
+#Configure App Subnet A
+  AppSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: "10.1.0.0/24"
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: App Subnet A (AZ1)
+
+#Configure App Subnet B
+  AppSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: "10.1.2.0/24"
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: App Subnet B (AZ2)
+
+  PortalAccessAG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+        GroupDescription: "Access to Portal Web Services"
+        GroupName: "PortalAccessAG"
+        VpcId: !Ref VPC
+        SecurityGroupEgress:
+          -
+            CidrIp: "0.0.0.0/0"
+            IpProtocol: "-1"
+
+  DemoServer1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+        ImageId: !Ref LatestAmiId
+        InstanceType: "t2.micro"
+        Tenancy: "default"
+        SubnetId: !Ref AppSubnetA
+        SecurityGroupIds:
+          - !Ref PortalAccessAG
+        SourceDestCheck: true
+        Tags:
+          -
+            Key: "Name"
+            Value: "DemoServer1-Marketing"
+          -
+            Key: Department
+            Value: Marketing
+
+  DemoServer2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+        ImageId: !Ref LatestAmiId
+        InstanceType: "t2.micro"
+        Tenancy: "default"
+        SubnetId: !Ref AppSubnetB
+        SecurityGroupIds:
+          - !Ref PortalAccessAG
+        SourceDestCheck: true
+        Tags:
+          -
+            Key: "Name"
+            Value: "DemoServer2-Finance"
+          -
+            Key: Department
+            Value: Finance
+
+  OperationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: OperationsLogGroup
+      RetentionInDays: 1
