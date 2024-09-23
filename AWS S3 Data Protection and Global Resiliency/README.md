@@ -454,13 +454,85 @@ In S3 with versioning enabled, a file’s history is always preserved, no matter
 
 
 
+### Restoring a Deleted Object
 
+During my testing, I realized that deleting an object in an S3 bucket with versioning enabled doesn’t actually remove the object—it just hides it with a delete marker. To bring the object back, I needed to restore it by removing this delete marker. This process essentially promotes the most recent version of the file to become the current version again.
+
+![Seleted Market in GUI](images/22DeletionMarkerGUI.png)
+To do this, I performed a **version-specific delete** on the delete marker, using its **Version ID** (which I noted earlier). Here’s the command I ran to permanently delete the delete marker:
+
+```bash
+aws s3api delete-object --bucket $module1_bucket --key important.txt --version-id "Version ID of delete marker"
+```
+![alt text](images/23DeletePermanent.png)
+Once I executed this command, the delete marker was removed, and **important.txt** reappeared as the current version. I confirmed this by listing the objects in the bucket:
+
+```bash
+aws s3api list-objects-v2 --bucket $module1_bucket
+```
+![Back CLI](images/24backCLI.png)
+Just like that, the file was back in place, confirming that S3 versioning can effectively protect my data even after it’s been "deleted."
+![Back CLI](images/25backGUI.png)
+
+###  Deleting a Specific Object Version
+
+Next, I experimented with permanently deleting a specific version of an object. Unlike the previous delete process, this wouldn’t leave a delete marker—it would completely remove that version from the bucket.
+
+To start, I found the **Version ID** of the current version of **important.txt** by running the following command:
+
+```bash
+aws s3api list-object-versions --bucket $module1_bucket
+```
+
+I identified the version of the file where `"IsLatest": true`, meaning it was the current version, and ran the **delete-object** command, specifying the **Version ID** of the version I wanted to delete:
+
+```bash
+aws s3api delete-object --bucket $module1_bucket --key important.txt --version-id "Version ID of current version"
+```
+![Permanent Deletion](images/26DeleteActualCersion.png)
+
+After running this, the specific version was permanently removed from the bucket. I could verify this by running the following command to list all object versions again:
+
+```bash
+aws s3api list-object-versions --bucket $module1_bucket
+```
+
+Even though I had deleted one version, the other versions of **important.txt** remained safely stored. The versioning system kept track of all changes, allowing me to restore older versions when needed.
+
+### Verifying the Changes
+
+I downloaded the **important.txt** object again, just to check which version had been promoted to the current one:
+
+```bash
+aws s3api get-object --bucket $module1_bucket --key important.txt testfile_2.txt
+```
+
+And then I displayed the file’s contents:
+
+```bash
+cat testfile_2.txt
+```
+
+The output confirmed that **Version 1** had been restored as the current version, since I had deleted **Version 2**.
+![Restored Version](images/27OldVersionPromoted.png)
+
+#### Reflecting on S3 Versioning
+
+At this point, I had successfully learned how to use S3 versioning to not only upload and overwrite objects but also restore deleted objects and manage specific versions. It was eye-opening to see how versioning ensures data integrity, even in scenarios where files are accidentally or deliberately deleted.
+
+### Considerations for the Future
+
+While versioning is incredibly useful, keeping all versions of objects can lead to increased storage costs. It’s essential to think about lifecycle management when using S3 versioning. For instance, I can set up **lifecycle rules** to automatically archive or delete old versions after a set period of time. This way, I’ll lower my storage costs without losing the ability to roll back to a previous version if something goes wrong.
+
+One cool approach would be to move older versions of objects to **Amazon S3 Glacier** (Instant Retrieval or Flexible Retrieval) for cheaper storage, and then automatically delete them after a specific number of days. This gives a balance between keeping backups and controlling costs.
+
+And with that, I completed the hands-on exploration of S3 Versioning. It’s such a vital tool for managing data with confidence, especially in environments where data changes frequently.
 
 
 
  
  ===========================================================================
- ## Extra Credit: Denying delete-object-version
+ ### Creating Life Cycle Rules for Managing Objects in S3
 
 
  ``` json
