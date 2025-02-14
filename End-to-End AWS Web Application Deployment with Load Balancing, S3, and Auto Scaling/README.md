@@ -2,9 +2,6 @@
 
 ---
 
-Here's an updated version with the additional information:
-
----
 
 ## Project Overview
 
